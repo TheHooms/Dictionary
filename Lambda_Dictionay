@@ -1,0 +1,57 @@
+import json
+import os
+import openai
+
+
+def lambda_handler(event, context):
+
+    event_body = ''
+    if('body' in event):
+        event_body = json.loads(event['body'])
+    else:
+        event_body = event
+    
+    word = event_body['word']
+    year = event_body['year']
+    local = event_body['local']
+    
+    enc = " -> ".join([word, year, local])
+    
+    print('Arguments:' , enc)
+
+
+    prompt="Imagine you are acting as a dictionary. Explain and describe the word <<word>> thoroughly to a year <<year>> student using <<local>> vocabulary." 
+    prompt += " Then add two new lines after explanation with the word 'Examples',"
+    prompt += " and then provide three example sentences with that word."
+    prompt += " and then add two new lines with the word 'Synonyms'"
+    prompt += "and then add three synonyms with numbers for that word, each appearing on a new line."
+    prompt += "After it's done, at the end of each line, add '<br/>' string."
+   
+    
+    prompt = prompt.replace('<<word>>',word).replace('<<year>>',year).replace('<<local>>', local)
+    
+    openai.api_key = os.environ['openai_api_key']
+    
+    response = openai.ChatCompletion.create(
+      model="gpt-4",
+      messages=[{"role": "user", "content": prompt}],
+      temperature=0.3,
+      max_tokens=2048
+    )
+    
+    result = response["choices"][0]["message"]["content"]
+    result = result.replace(word,'<b>'+word+'</b>').replace('Examples','<b>Examples</b>').replace('Synonyms','<b>Synonyms</b>');
+    print ("\n\n" , result , "\n\n" );
+
+    return {
+        'statusCode': 200,
+        'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': 'true', 
+                'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+                },
+
+        'body': json.dumps(result)
+    }
+
