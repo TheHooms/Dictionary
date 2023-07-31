@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Inquisitive Dictionary</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: left;
+    }
+    img {
+            width: 25%;
+            max-width: 100%; 
+            height: auto; 
+        }
+    input, select, button {
+      margin: 5px;
+    }
+    input{
+      width: 70%;
+    }
+    #response-label {
+      margin-top: 20px;
+    }
+    .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999; 
+            display: none; 
+        }
+
+        .spinner {
+            border: 6px solid #f3f3f3; 
+            border-top: 6px solid #890b9c; 
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+  </style>
+</head>
+<body>
+    <div class="overlay" id="overlay">
+        <div class="spinner"></div>
+    </div>
+
+  <img src="https://www.inquisitive.com/au/static/media/inquisitive_logo.af8e9f4b.svg" alt="Inquisitive image">
+
+
+  <form id="myForm">
+    <b>Word:</b>
+    <input type="text" id="word" placeholder="Enter a word to translate..." required>
+<br/>
+   <b>Year:</b>
+    <select id="year" required>
+      <option value="" disabled selected>Select year</option>
+      <option value="K">K</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+    </select>
+<br/>
+    <b>Local:</b>
+    <select id="local" required>
+      <option value="" disabled selected>Select local</option>
+      <option value="Australian English">Australia</option>
+      <option value="Canadian English">Canada</option>
+      <option value="American English">USA</option>
+      <option value="New Zealand English">NZ</option>
+    </select>
+<br/>
+    <button type="button" id="submitBtn">Translate</button>
+  </form>
+
+  <div id="response-label"></div>
+
+  <script>
+       function showSpinner() {
+            document.querySelector(".overlay").style.display = "block";
+        }
+
+        function hideSpinner() {
+            document.getElementById("overlay").style.display = "none";
+                
+        }
+
+    window.addEventListener("load", function() {
+        var dropdown = document.getElementById("year");
+        var defaultOptionValue = "2"; 
+
+ 
+        for (var i = 0; i < dropdown.options.length; i++) {
+            if (dropdown.options[i].value === defaultOptionValue) {
+                dropdown.selectedIndex = i;
+                break;
+            }
+        }
+        var dropdown = document.getElementById("local");
+        var defaultOptionValue = "Australian English"; 
+
+        for (var i = 0; i < dropdown.options.length; i++) {
+            if (dropdown.options[i].value === defaultOptionValue) {
+                dropdown.selectedIndex = i;
+                break;
+            }
+        }
+
+    });
+
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+
+      if (document.getElementById('word').value.trim() === '') {
+                alert('Please provide a word to translate ...');
+                return;
+      }
+      
+        document.getElementById("overlay").style.display = "flex";
+
+
+      const wordValue = document.getElementById('word').value;
+      const yearValue = document.getElementById('year').value;
+      const localValue = document.getElementById('local').value;
+
+      const requestData = {
+        word: wordValue,
+        year: yearValue,
+        local: localValue,
+      };
+
+      console.log(requestData);
+
+      const endpointUrl = 'https://nesl7drntoakk2vxz7sfq5jppa0siwjt.lambda-url.us-east-2.on.aws'
+
+      fetch(endpointUrl, {
+        method: 'POST',
+      
+        body: JSON.stringify(requestData),
+      })
+      .then(response => response.json())
+      .then(data => {
+        data = data.replace('\n','<br/>').replace('\n\n','<br/><br/>').replace('\r','<br/>').replace(word,'<b>'+word+'</b>').replace('Examples<br/>','<b>Examples</b><br/>').replace('Synonyms<br/>','<b>Synonyms</b><br/>');
+        document.getElementById('response-label').innerHTML = data;
+
+      })
+      .catch(error => {
+        console.error('Error sending data to the server:', error);
+      })
+      .finally(() => {
+            hideSpinner(); 
+      });
+    });
+  </script>
+</body>
+</html>
