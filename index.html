@@ -80,13 +80,26 @@
       <option value="12">12</option>
     </select>
 <br/>
-    <b>Local:</b>
+  <b>Local:</b>
     <select id="local" required>
       <option value="" disabled selected>Select local</option>
       <option value="Australian English">Australia</option>
       <option value="Canadian English">Canada</option>
       <option value="American English">USA</option>
       <option value="New Zealand English">NZ</option>
+    </select>
+<br/>
+    <b>Subject:</b>
+    <select id="subject" required>
+      <option value="" disabled selected>Select subject</option>
+      <option value="geography">Geography</option>
+      <option value="history">History</option>
+      <option value="science and technology">Science and technology</option>
+      <option value="English">English</option>
+      <option value="Maths">Maths</option>
+      <option value="civics and citizenship">Civics and citizenship</option>
+      <option value="economics and business">Economics and business</option>
+      <option value="integarted">Integrated</option>
     </select>
 <br/>
     <button type="button" id="submitBtn">Translate</button>
@@ -125,6 +138,16 @@
             }
         }
 
+        var dropdown = document.getElementById("subject");
+        var defaultOptionValue = "science and technology"; 
+
+        for (var i = 0; i < dropdown.options.length; i++) {
+            if (dropdown.options[i].value === defaultOptionValue) {
+                dropdown.selectedIndex = i;
+                break;
+            }
+        }
+
     });
 
 
@@ -141,11 +164,14 @@
       const wordValue = document.getElementById('word').value;
       const yearValue = document.getElementById('year').value;
       const localValue = document.getElementById('local').value;
+      const subjectValue = document.getElementById('subject').value;
+
 
       const requestData = {
         word: wordValue,
         year: yearValue,
         local: localValue,
+        subject: subjectValue
       };
 
       console.log(requestData);
@@ -160,6 +186,7 @@
       .then(response => response.json())
       .then(data => {
         data = data.replace('\n','<br/>').replace('\n\n','<br/><br/>').replace('\r','<br/>').replace(word,'<b>'+word+'</b>').replace('Examples<br/>','<b>Examples</b><br/>').replace('Synonyms<br/>','<b>Synonyms</b><br/>');
+        data = data.replace('Plural<br/>','<b>Plural</b><br/>').replace('Lexical<br/>','<b>Lexical</b><br/>').replace('Phonetic<br/>','<b>Phonetic</b><br/>');
         document.getElementById('response-label').innerHTML = data;
 
       })
