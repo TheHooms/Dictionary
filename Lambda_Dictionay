@@ -13,22 +13,40 @@ def lambda_handler(event, context):
     
     word = event_body['word']
     year = event_body['year']
+    subject = event_body['subject']
     local = event_body['local']
     
-    enc = " -> ".join([word, year, local])
+    
+    enc = " -> ".join([word, year, subject, local])
     
     print('Arguments:' , enc)
 
 
-    prompt="Imagine you are acting as a dictionary. Explain and describe the word <<word>> thoroughly to a year <<year>> student using <<local>> vocabulary." 
-    prompt += " Then add two new lines after explanation with the word 'Examples',"
-    prompt += " and then provide three example sentences with that word."
-    prompt += " and then add two new lines with the word 'Synonyms'"
-    prompt += "and then add three synonyms with numbers for that word, each appearing on a new line."
-    prompt += "After it's done, at the end of each line, add '<br/>' string."
-   
+    prompt="""Imagine you are acting as a dictionary for elementary school students. 
+    Describe the word <<word>> thoroughly in the <<subject>> subject area to a year <<year>> student using <<local>> vocabulary. 
+    Please use simple words that are related to the students year group and avoid complex and difficult words. 
+    Please limit the words to less than 12 or less words and avoid saying 'the word means'.
+    For example, for the word 'waste' say: 'Unwanted or unusable material.' 
+    or for the word 'Direction' say 'The path an object takes when it moves.'
+    or for the word 'Forecast' say 'What is likely to happen.'
+    or for the word 'Summer' say 'One of the four seasons, when the weather is the warmest.'
+    or for the word 'Designer' say 'A person who asks questions, observes, and collects information in order to create something new for a specific reason.'
+    or for the word 'Information' say 'Something that living things can learn, know about, or understand.'
+    or for the word 'Solid' say 'Having a firm shape or form that can be measured in length, width and height.'.
+    Then
+    add two new lines with the word 'Plural: ' with the plural form of the word
+    and then add two new lines with the word 'Lexical: ' with the Lexical category for the word
+    and then add two new lines with the word 'Phonetic: ' with the phonetic for the word.
+    add two new lines after explanation with the word 'Examples',
+    and then provide three example sentences with that word using words that are simple to understand for that year group without the single quote character.
+    and then add two new lines with the word 'Synonyms'
+    and then add three synonyms with numbers for that word, each appearing on a new line.
     
-    prompt = prompt.replace('<<word>>',word).replace('<<year>>',year).replace('<<local>>', local)
+    
+    After it's done, at the end of each line, add '<br/>' string.
+    """
+
+    prompt = prompt.replace('<<word>>',word).replace('<<year>>',year).replace('<<local>>', local).replace('<<subject>>', subject)
     
     openai.api_key = os.environ['openai_api_key']
     
@@ -40,7 +58,9 @@ def lambda_handler(event, context):
     )
     
     result = response["choices"][0]["message"]["content"]
-    result = result.replace(word,'<b>'+word+'</b>').replace('Examples','<b>Examples</b>').replace('Synonyms','<b>Synonyms</b>');
+    result = result.replace(word,'<b>'+word+'</b>').replace('Examples','<b>Examples</b>')
+    result = result.replace('Synonyms','<b>Synonyms</b>').replace('Plural','<b>Plural</b>')
+    result = result.replace('Lexical','<b>Lexical</b>').replace('Phonetic','<b>Phonetic</b>')
     print ("\n\n" , result , "\n\n" );
 
     return {
