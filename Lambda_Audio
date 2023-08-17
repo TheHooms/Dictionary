@@ -1,0 +1,103 @@
+import json
+import os
+import boto3
+from contextlib import closing
+
+def check_file_exists(bucket, key):
+    bucket_name = "audiofilesrepo"
+    s3_client = boto3.client('s3', 'us-west-2')
+    print(f'bucket: {bucket}, key: {key}')
+    
+    response = s3_client.list_objects_v2(
+        Bucket=bucket_name,
+        Prefix=key,
+        MaxKeys=1
+    )
+    
+    return 'Contents' in response and len(response['Contents']) > 0
+
+
+def generate_presigned_url(bucket_name, object_key, expiration=3600):
+   
+    s3_client = boto3.client('s3')
+    
+    try:
+        response = s3_client.generate_presigned_url('get_object',
+                                                    Params={'Bucket': bucket_name,
+                                                            'Key': object_key},
+                                                    ExpiresIn=expiration)
+    except Exception as e:
+        print(e)
+        return None
+
+    return response
+
+
+def lambda_handler(event, context):
+
+    event_body = ''
+    if('body' in event):
+        event_body = json.loads(event['body'])
+    else:
+        event_body = event
+        
+    word = event_body['word']
+    voiceId = event_body['voiceId']
+    
+    print('word: ', word)
+    print('voiceId: ', voiceId)
+    
+    engine='standard'
+    if(voiceId=='Aria'):
+        engine='neural'
+    
+    file_key = f'{word}_{voiceId}'
+    
+    s3_client = boto3.client('s3', 'us-west-2')
+    bucket_name = "audiofilesrepo"
+
+    theurl = generate_presigned_url(bucket_name, file_key)
+    
+   
+    index = theurl.find("?")
+    audio_url = f'{theurl[:index]}.mp3'
+    print(f' >>>>>>>URL:  {audio_url}')  
+     
+    if check_file_exists(bucket_name, file_key):
+        print(f'file {file_key} already exists')
+        return {
+            'statusCode': 200,
+            'body': json.dumps(audio_url)
+        }
+    else:
+        print(f'creating audio for {file_key}')
+ 
+    # Create Polly client
+    polly_client = boto3.client('polly')
+    
+    # Use Polly to synthesize the speech
+    response = polly_client.synthesize_speech(Text=word, 
+                                              Engine=engine,     
+                                              OutputFormat='mp3', 
+                                              VoiceId=voiceId)
+                                              
+    # Store the synthesized speech in S3
+    s3_client = boto3.client('s3')
+    
+    file_key = f"{word}_{voiceId}.mp3"
+    
+    
+    if "AudioStream" in response:
+        with closing(response["AudioStream"]) as stream:
+            s3_client.upload_fileobj(stream, bucket_name, file_key, 
+                ExtraArgs={
+                    'ContentType': 'audio/mpeg', 
+                    'ContentDisposition':'inline'
+                })
+                
+    return {
+        'statusCode': 200,
+        'body': json.dumps(audio_url)
+    }
+    
+
