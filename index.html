@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Inquisitive Dictionary</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -16,10 +17,13 @@
       margin: 5px;
     }
     input{
-      width: 70%;
+      width: 50%;
     }
     #response-label {
       margin-top: 20px;
+    }
+    #playBtn {
+            display: none;
     }
     .overlay {
             position: fixed;
@@ -48,19 +52,22 @@
             100% { transform: rotate(360deg); }
         }
 
+
+
+  </style>
   </style>
 </head>
 <body>
-    <div class="overlay" id="overlay">
-        <div class="spinner"></div>
-    </div>
+<div class="overlay" id="overlay">
+    <div  class="spinner"></div>
+</div>
 
   <img src="https://www.inquisitive.com/au/static/media/inquisitive_logo.af8e9f4b.svg" alt="Inquisitive image">
 
 
   <form id="myForm">
     <b>Word:</b>
-    <input type="text" id="word" placeholder="Enter a word to translate..." required>
+    <input type="text" id="word" placeholder="Enter a word to translate..." required> <button type="button" id="playBtn" >Play</button>
 <br/>
    <b>Year:</b>
     <select id="year" required>
@@ -86,7 +93,7 @@
       <option value="Australian English">Australia</option>
       <option value="Canadian English">Canada</option>
       <option value="American English">USA</option>
-      <option value="New Zealand English">NZ</option>
+     <!-- <option value="New Zealand English">NZ</option>-->
     </select>
 <br/>
     <b>Subject:</b>
@@ -105,19 +112,28 @@
     <button type="button" id="submitBtn">Translate</button>
   </form>
 
+  <div>
+    
+    <audio id="audioPlayer"></audio>
+  </div>  
+
   <div id="response-label"></div>
 
-  <script>
-       function showSpinner() {
-            document.querySelector(".overlay").style.display = "block";
-        }
+    <br/>
+  <div id="imagesContainer"></div>
 
-        function hideSpinner() {
-            document.getElementById("overlay").style.display = "none";
-                
-        }
+
+  <script>
+    function showSpinner() {
+        document.querySelector(".overlay").style.display = "block";
+    }
+
+    function hideSpinner() {
+        document.getElementById("overlay").style.display = "none";    
+    }
 
     window.addEventListener("load", function() {
+
         var dropdown = document.getElementById("year");
         var defaultOptionValue = "2"; 
 
@@ -139,7 +155,7 @@
         }
 
         var dropdown = document.getElementById("subject");
-        var defaultOptionValue = "science and technology"; 
+        var defaultOptionValue = "English"; 
 
         for (var i = 0; i < dropdown.options.length; i++) {
             if (dropdown.options[i].value === defaultOptionValue) {
@@ -148,55 +164,112 @@
             }
         }
 
+
+        // Add play button event listener here so it's only added once
+        document.getElementById('playBtn').addEventListener('click', function() {
+           let audio_player = new Audio(this.getAttribute('audiourl'));
+           audio_player.play();
+        });
     });
 
+    let image_prompt = ''
 
+    
     document.getElementById('submitBtn').addEventListener('click', () => {
+        if (document.getElementById('word').value.trim() === '') {
+            alert('Please provide a word to translate ...');
+            return;
+        }
 
-      if (document.getElementById('word').value.trim() === '') {
-                alert('Please provide a word to translate ...');
-                return;
-      }
-      
+        document.getElementById('imagesContainer').innerHTML = ''
+
+        document.getElementById('response-label').innerHTML = ''
+
         document.getElementById("overlay").style.display = "flex";
 
-
-      const wordValue = document.getElementById('word').value;
-      const yearValue = document.getElementById('year').value;
-      const localValue = document.getElementById('local').value;
-      const subjectValue = document.getElementById('subject').value;
+        document.getElementById('playBtn').style.display = 'none';
 
 
-      const requestData = {
-        word: wordValue,
-        year: yearValue,
-        local: localValue,
-        subject: subjectValue
-      };
 
-      console.log(requestData);
+        const wordValue = document.getElementById('word').value;
+        const yearValue = document.getElementById('year').value;
+        const localValue = document.getElementById('local').value;
+        const subjectValue = document.getElementById('subject').value;
+        
+        let audio_url =''
 
-      const endpointUrl = 'https://nesl7drntoakk2vxz7sfq5jppa0siwjt.lambda-url.us-east-2.on.aws'
+        const requestData = {
+            word: wordValue,
+            year: yearValue,
+            local: localValue,
+            subject: subjectValue
+        };
 
-      fetch(endpointUrl, {
+        console.log(requestData);
+
+        const endpointUrl = 'https://nesl7drntoakk2vxz7sfq5jppa0siwjt.lambda-url.us-east-2.on.aws'
+
+
+        fetch(endpointUrl, {
         method: 'POST',
       
         body: JSON.stringify(requestData),
       })
-      .then(response => response.json())
-      .then(data => {
-        data = data.replace('\n','<br/>').replace('\n\n','<br/><br/>').replace('\r','<br/>').replace(word,'<b>'+word+'</b>').replace('Examples<br/>','<b>Examples</b><br/>').replace('Synonyms<br/>','<b>Synonyms</b><br/>');
-        data = data.replace('Plural<br/>','<b>Plural</b><br/>').replace('Lexical<br/>','<b>Lexical</b><br/>').replace('Phonetic<br/>','<b>Phonetic</b><br/>');
-        document.getElementById('response-label').innerHTML = data;
+      .then(response => {
 
+        audio_url = response.headers.get('x-inquisitive-audiourl')
+        console.log('audio:' + audio_url)
+        
+        image_prompt = response.headers.get('x-inquisitive-imageprompt')
+        console.log('image prompt:' + image_prompt)
+
+
+        return response.json();
+      }).then( data=>{ 
+        
+        document.getElementById('response-label').innerHTML = data + "<br/><br/><b>Audio:</b> " + audio_url + '<br/>Image Prompt: ' + image_prompt;
+
+        document.getElementById('playBtn').style.display = 'block';
+
+        document.getElementById('playBtn').setAttribute('audiourl', audio_url);
+
+  
       })
-      .catch(error => {
-        console.error('Error sending data to the server:', error);
-      })
-      .finally(() => {
-            hideSpinner(); 
-      });
+        .catch(error => {
+            console.error('Error sending data to the server:', error);
+        })
+        .finally(() => {
+            
+            // document.getElementById('mainSpinner').style.display = 'none';
+            // document.getElementById('imageSpinner').style.display = 'block';
+
+            const image_endpointUrl = 'https://h2aeq5awjoruqmsxxifwb2rl340yylju.lambda-url.us-east-2.on.aws'
+
+            fetch(image_endpointUrl, {
+                method: 'POST',
+                body: JSON.stringify({
+                    image_prompt: image_prompt
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                let imagesContainer = document.getElementById('imagesContainer');
+                data.forEach(img => {
+                    let imgElement = document.createElement('img');
+                    imgElement.src = img.url;
+                    imagesContainer.appendChild(imgElement);
+                });
+            })
+            .catch(error => {
+                console.error('Error sending data to the second server:', error);
+            })
+            .finally(() => {
+                //document.getElementById('spinner').style.display = 'none';
+                hideSpinner();
+            });
+        });
     });
-  </script>
+</script>
+
 </body>
 </html>
