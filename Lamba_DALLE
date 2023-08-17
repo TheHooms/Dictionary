@@ -1,0 +1,38 @@
+import json
+import os
+import openai
+
+def lambda_handler(event, context):
+  
+    event_body = ''
+    if('body' in event):
+        event_body = json.loads(event['body'])
+    else:
+        event_body = event
+    
+    image_prompt = event_body['image_prompt']
+    
+    print(f'image prompt: {image_prompt}')
+    
+    openai.api_key = os.environ['openai_api_key']
+    
+    response = openai.Image.create(
+                                prompt = image_prompt,
+                                n=2,
+                                size="256x256"
+                                )
+    for image in response['data']:
+        print('image url:', {image['url']})
+                                
+    
+    return {
+        'statusCode': 200,
+        'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': 'true', 
+                'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+                },
+
+        'body': response['data']
+    }
