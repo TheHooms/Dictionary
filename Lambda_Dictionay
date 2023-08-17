@@ -1,7 +1,21 @@
 import json
 import os
 import openai
+import requests
+import re
 
+
+def LocalToVoice(value):
+    voices = {
+        'Australian English':'Nicole',
+        'Canadian English':'Ivy',
+        'American English':'Salli',
+        'New Zealand English':'Aria'
+    }
+
+    return voices.get(value, "Emma")
+    
+    
 
 def lambda_handler(event, context):
 
@@ -15,15 +29,17 @@ def lambda_handler(event, context):
     year = event_body['year']
     subject = event_body['subject']
     local = event_body['local']
+    voiceId = LocalToVoice(local)
     
     
-    enc = " -> ".join([word, year, subject, local])
+    enc = " -> ".join([word, year, subject, local, voiceId])
     
     print('Arguments:' , enc)
-
-
+    
     prompt="""Imagine you are acting as a dictionary for elementary school students. 
-    Describe the word <<word>> thoroughly in the <<subject>> subject area to a year <<year>> student using <<local>> vocabulary. 
+    Describe the word <<word>> thoroughly in the <<subject>> subject context to a year <<year>> 
+    student using <<local>> vocabulary. 
+    Then add a new line with the word 'Lexical: ' with the Lexical category for the word
     Please use simple words that are related to the students year group and avoid complex and difficult words. 
     Please limit the description to less than 12 or less words and avoid saying 'the word means'.
     For example, for the word 'waste' say: 'Unwanted or unusable material.' 
@@ -32,17 +48,15 @@ def lambda_handler(event, context):
     or for the word 'Summer' say 'One of the four seasons, when the weather is the warmest.'
     or for the word 'Designer' say 'A person who asks questions, observes, and collects information in order to create something new for a specific reason.'
     or for the word 'Information' say 'Something that living things can learn, know about, or understand.'
-    or for the word 'Solid' say 'Having a firm shape or form that can be measured in length, width and height.'.
-    Then
-    add two new lines with the word 'Plural: ' with the plural form of the word
-    and then add two new lines with the word 'Lexical: ' with the Lexical category for the word
-    and then add two new lines with the word 'Phonetic: ' with the phonetic for the word.
-    add two new lines after explanation with the word 'Examples',
+    or for the word 'Solid' say 'Having a firm shape or form that can be measured in length, width and height.'
+    Then add two new lines after explanation with the word 'Examples',
     and then provide three example sentences with that word using words that are simple to understand for that year group without the single quote character.
     and then add two new lines with the word 'Synonyms'
     and then add three synonyms with numbers for that word, each appearing on a new line.
-    
-    
+    and then add two new lines with the word 'Plural: ' with the plural form of the word
+    and then add two new lines with the word 'Phonetic: ' with the phonetic for the word and add three new lines.
+    and then add two new lines with the word 'Image: ' with a description of an image that can be used for this word in DALL·E to generate related images and add <br/> and two lines. 
+    More importantly, if the word has more than one lexical, for example, the word space is both noun and verb, repeat the whole statement for each lexical and tell the user that it has more than one lexical. Please don't explicitly mention that the word has more than one lexical.
     After it's done, at the end of each line, add '<br/>' string.
     """
 
@@ -51,7 +65,7 @@ def lambda_handler(event, context):
     openai.api_key = os.environ['openai_api_key']
     
     response = openai.ChatCompletion.create(
-      model="gpt-4",
+      model="gpt-3.5-turbo-16k",
       messages=[{"role": "user", "content": prompt}],
       temperature=0.3,
       max_tokens=2048
@@ -62,6 +76,38 @@ def lambda_handler(event, context):
     result = result.replace('Synonyms','<b>Synonyms</b>').replace('Plural','<b>Plural</b>')
     result = result.replace('Lexical','<b>Lexical</b>').replace('Phonetic','<b>Phonetic</b>')
     print ("\n\n" , result , "\n\n" );
+    
+    
+    #fetching audio
+    url = os.environ['audio_lambda_url']
+    headers = {
+        "Content-Type": "text/plain"
+    }
+    data = {
+      "word": word,
+      "voiceId": voiceId
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    audio = ''
+    if response.status_code == 200:
+        print(f'AUDIO: {response.json()}')
+        audio = response.json()
+       
+    else:
+        print("Failed to make a POST request")
+        
+    
+    #audio--end
+    
+    match = re.search(r'Image: (.*?)<br/>', result)
+    image_prompt=''
+    if match:
+        image_prompt = re.sub(r'<b>|</b>', '', match.group(1))
+        print(f'Image prompt: {image_prompt}')
+        
+    else:
+        print('No match for image prompt!')
 
     return {
         'statusCode': 200,
@@ -69,7 +115,10 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Credentials': 'true', 
-                'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+                'Access-Control-Expose-Headers': 'x-inquisitive-audiourl, x-inquisitive-imageprompt',
+                'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+                'x-inquisitive-audiourl': audio,
+                'x-inquisitive-imageprompt':image_prompt 
                 },
 
         'body': json.dumps(result)
